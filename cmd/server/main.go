@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	service "sharding/service"
 	"sync"
-	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -19,9 +18,11 @@ import (
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
-func initServer(logger *zap.Logger) *grpc.Server {
+func initServer(logger *zap.Logger) (*grpc.Server, *service.Root) {
 	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
 		return true
 	}
@@ -41,7 +42,7 @@ func initServer(logger *zap.Logger) *grpc.Server {
 		),
 	)
 
-	service.InitServices(server)
+	root := service.InitRoot(server)
 
 	grpc_prometheus.Register(server)
 	grpc_prometheus.EnableHandlingTimeHistogram()
@@ -58,7 +59,7 @@ func initServer(logger *zap.Logger) *grpc.Server {
 	http.Handle("/api/", mux)
 	http.Handle("/metrics", promhttp.Handler())
 
-	return server
+	return server, root
 }
 
 func main() {
@@ -67,7 +68,7 @@ func main() {
 		panic(err)
 	}
 
-	server := initServer(logger)
+	server, root := initServer(logger)
 
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt, os.Kill)
@@ -78,7 +79,7 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 
 	go func() {
 		defer wg.Done()
@@ -105,14 +106,20 @@ func main() {
 		}
 	}()
 
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+
+	go func() {
+		defer wg.Done()
+
+		root.Run(ctx)
+	}()
+
 	signal := <-exit
 	fmt.Println("SIGNAL", signal)
+	cancel()
 
 	server.GracefulStop()
-
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 100*time.Second)
-	defer cancel()
 
 	err = httpServer.Shutdown(ctx)
 	if err != nil {
