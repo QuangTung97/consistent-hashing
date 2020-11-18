@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package hello.v1;
+
+option go_package = "sharding/rpc/hello/v1;hello";
+
+import "google/api/annotations.proto";
+
+import "google/protobuf/timestamp.proto";
+
+message HelloRequest {
+  string name = 1;
+  google.protobuf.Timestamp created_at = 2;
+}
+
+message HelloResponse {
+}
+
+
+service Hello {
+  rpc Hello (HelloRequest) returns (HelloResponse) {
+    option (google.api.http) = {
+      post: "/api/hello"
+      body: "*"
+    };
+  }
+}
