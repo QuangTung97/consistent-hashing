@@ -1,10 +1,13 @@
 package errors
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Error struct {
@@ -16,7 +19,7 @@ type Error struct {
 var registeredErrors = make(map[string]struct{})
 
 func (err Error) Error() string {
-	return fmt.Sprintf("code: %s, message: %q", err.Code, err.Message)
+	return fmt.Sprintf("code: %s, message: %s", err.Code, err.Message)
 }
 
 func checkCode(code string) codes.Code {
@@ -58,5 +61,20 @@ func New(code, msg string) error {
 		RpcCode: rpcCode,
 		Code:    code,
 		Message: msg,
+	}
+}
+
+func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		resp, err := handler(ctx, req)
+		if err != nil {
+			domainErr, ok := err.(Error)
+			if !ok {
+				return resp, err
+			}
+			st := status.New(domainErr.RpcCode, domainErr.Error())
+			return resp, st.Err()
+		}
+		return resp, nil
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sharding/domain/errors"
 	service "sharding/service"
 	"sync"
 
@@ -34,6 +35,7 @@ func initServer(logger *zap.Logger) (*grpc.Server, *service.Root) {
 			grpc_prometheus.UnaryServerInterceptor,
 			grpc_zap.UnaryServerInterceptor(logger),
 			// grpc_zap.PayloadUnaryServerInterceptor(logger, decider),
+			errors.UnaryServerInterceptor(),
 		),
 		grpc.ChainStreamInterceptor(
 			grpc_ctxtags.StreamServerInterceptor(),
