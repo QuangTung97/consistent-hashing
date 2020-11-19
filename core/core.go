@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -10,8 +11,9 @@ import (
 
 // ConsistentHash a node in consistent hashing
 type ConsistentHash struct {
-	NodeID uint32 `db:"node_id"`
-	Hash   uint32 `db:"hash"`
+	NodeID  uint32 `db:"node_id"`
+	Hash    uint32 `db:"hash"`
+	Address string `db:"address"`
 }
 
 func deleteHash(db *sqlx.DB, nodeID uint32) {
@@ -23,19 +25,20 @@ func deleteHash(db *sqlx.DB, nodeID uint32) {
 }
 
 var keepAliveQuery = `
-INSERT INTO consistent_hash (node_id, hash, expired_at)
-VALUE (?, ?, TIMESTAMPADD(SECOND, 60, NOW())) AS NEW
-ON DUPLICATE KEY UPDATE hash = NEW.hash, expired_at = NEW.expired_at
+INSERT INTO consistent_hash (node_id, hash, address, expired_at)
+VALUE (?, ?, ?, TIMESTAMPADD(SECOND, 60, NOW())) AS NEW
+ON DUPLICATE KEY UPDATE
+    hash = NEW.hash,
+    address = NEW.address,
+    expired_at = NEW.expired_at
 `
 
-// KeepAlive keeps the current node alive
-func KeepAlive(ctx context.Context, db *sqlx.DB, nodeID uint32, hash uint32) {
+func keepAlive(ctx context.Context, db *sqlx.DB, nodeID uint32, hash uint32, address string) {
 KeepAliveLoop:
 	for {
-		_, err := db.Exec(keepAliveQuery, nodeID, hash)
+		_, err := db.Exec(keepAliveQuery, nodeID, hash, address)
 		if err != nil {
 			fmt.Println(err)
-			time.Sleep(10 * time.Second)
 
 			select {
 			case <-ctx.Done():
@@ -58,6 +61,21 @@ KeepAliveLoop:
 	}
 }
 
+// KeepAlive keeps the current node alive
+func KeepAlive(ctx context.Context, db *sqlx.DB,
+	nodeID uint32, hash uint32, address string, wg *sync.WaitGroup,
+) {
+	_, err := db.Exec(keepAliveQuery, nodeID, hash, address)
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		defer wg.Done()
+		keepAlive(ctx, db, nodeID, hash, address)
+	}()
+}
+
 // WatchResponse for each watch response
 type WatchResponse struct {
 	Hashes []ConsistentHash
@@ -67,14 +85,13 @@ func watch(ctx context.Context, db *sqlx.DB, ch chan<- WatchResponse) {
 WatchLoop:
 	for {
 		query := `
-SELECT node_id, hash FROM consistent_hash
+SELECT node_id, hash, address FROM consistent_hash
 WHERE NOW() <= expired_at
 `
 		var hashes []ConsistentHash
 		err := db.Select(&hashes, query)
 		if err != nil {
 			fmt.Println(err)
-			time.Sleep(10 * time.Second)
 
 			select {
 			case <-ctx.Done():

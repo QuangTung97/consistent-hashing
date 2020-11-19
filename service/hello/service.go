@@ -9,13 +9,13 @@ import (
 // Service for gRPC
 type Service struct {
 	rpc.UnsafeHelloServer
-	port domain.IPort
+	port domain.Port
 }
 
 var _ rpc.HelloServer = &Service{}
 
 // NewService create a new Service
-func NewService(port domain.IPort) *Service {
+func NewService(port domain.Port) *Service {
 	return &Service{
 		port: port,
 	}
