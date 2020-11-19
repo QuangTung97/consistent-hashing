@@ -81,8 +81,7 @@ type WatchResponse struct {
 	Hashes []ConsistentHash
 }
 
-func watch(ctx context.Context, db *sqlx.DB, ch chan<- WatchResponse) {
-WatchLoop:
+func watch(db *sqlx.DB, ch chan<- WatchResponse) {
 	for {
 		query := `
 SELECT node_id, hash, address FROM consistent_hash
@@ -93,31 +92,20 @@ WHERE NOW() <= expired_at
 		if err != nil {
 			fmt.Println(err)
 
-			select {
-			case <-ctx.Done():
-				close(ch)
-				return
-			case <-time.After(10 * time.Second):
-				continue WatchLoop
-			}
+			time.Sleep(10 * time.Second)
+			continue
 		}
 
 		ch <- WatchResponse{
 			Hashes: hashes,
 		}
-		select {
-		case <-ctx.Done():
-			close(ch)
-			return
-		case <-time.After(2 * time.Second):
-			continue WatchLoop
-		}
+		time.Sleep(2 * time.Second)
 	}
 }
 
 // Watch get the consistent hashing configure
-func Watch(ctx context.Context, db *sqlx.DB) <-chan WatchResponse {
+func Watch(db *sqlx.DB) <-chan WatchResponse {
 	ch := make(chan WatchResponse)
-	go watch(ctx, db, ch)
+	go watch(db, ch)
 	return ch
 }

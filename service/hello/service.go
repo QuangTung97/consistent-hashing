@@ -24,5 +24,11 @@ func NewService(port domain.Port) *Service {
 // Hello do hello
 func (s *Service) Hello(ctx context.Context, req *rpc.HelloRequest,
 ) (*rpc.HelloResponse, error) {
+
+	err := s.port.Increase(ctx, 100)
+	if err != nil {
+		return nil, err
+	}
+
 	return &rpc.HelloResponse{}, nil
 }

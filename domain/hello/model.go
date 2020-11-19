@@ -1,6 +1,9 @@
 package hello
 
-import "context"
+import (
+	"context"
+	"sharding/core"
+)
 
 type (
 	CounterID uint32
@@ -16,5 +19,7 @@ type (
 	}
 
 	Port interface {
+		Increase(ctx context.Context, id CounterID) error
+		Process(ctx context.Context, watchChan <-chan core.WatchResponse)
 	}
 )

@@ -2,10 +2,11 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"sharding/config"
 	"sharding/core"
+	"sharding/domain/hello"
 	hello_logic "sharding/domain/hello/logic"
+	hello_repo "sharding/repo/hello"
 	hello_rpc "sharding/rpc/hello/v1"
 	hello_service "sharding/service/hello"
 	"sync"
@@ -17,51 +18,42 @@ import (
 
 // Root represents the whole app
 type Root struct {
-	db     *sqlx.DB
 	config config.Config
-
-	mutex    sync.RWMutex
-	hashDist []core.ConsistentHash
+	db     *sqlx.DB
+	port   hello.Port
 }
 
 // InitRoot creates a Root
 func InitRoot(server *grpc.Server) *Root {
 	cfg := config.LoadConfig()
 
-	port := hello_logic.NewPort()
+	db := sqlx.MustConnect("mysql", "root:1@tcp(localhost:3306)/bench?parseTime=true")
+	repo := hello_repo.NewRepo(db)
+
+	port := hello_logic.NewPort(repo)
 
 	s := hello_service.NewService(port)
 	hello_rpc.RegisterHelloServer(server, s)
 
-	db := sqlx.MustConnect("mysql", "root:1@tcp(localhost:3306)/bench?parseTime=true")
-
 	return &Root{
 		config: cfg,
 		db:     db,
+		port:   port,
 	}
 }
 
-// Run another processes
+// Run other processes
 func (r *Root) Run(ctx context.Context) {
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2)
 
 	node := r.config.Node
 	core.KeepAlive(ctx, r.db, node.ID, node.Hash, node.ToAddress(), &wg)
-	watchChan := core.Watch(ctx, r.db)
+	watchChan := core.Watch(r.db)
 
 	go func() {
-		for wr := range watchChan {
-			hashes := make([]core.ConsistentHash, 0, len(wr.Hashes))
-			for _, h := range wr.Hashes {
-				hashes = append(hashes, h)
-			}
-			fmt.Println(hashes)
-
-			r.mutex.Lock()
-			r.hashDist = hashes
-			r.mutex.Unlock()
-		}
+		defer wg.Done()
+		r.port.Process(ctx, watchChan)
 	}()
 
 	wg.Wait()
