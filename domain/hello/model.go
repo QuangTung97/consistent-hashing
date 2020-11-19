@@ -3,6 +3,7 @@ package hello
 import (
 	"context"
 	"sharding/core"
+	"sharding/domain/errors"
 )
 
 type (
@@ -22,4 +23,9 @@ type (
 		Increase(ctx context.Context, id CounterID) error
 		Process(ctx context.Context, watchChan <-chan core.WatchResponse)
 	}
+)
+
+var (
+	ErrCommandAborted = errors.New("10000", "Command aborted")
+	ErrCommandTimeout = errors.New("10001", "Command timeout")
 )

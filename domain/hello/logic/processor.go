@@ -183,5 +183,5 @@ func (p *processor) processCommands(cmds []command) error {
 
 func (p *processor) handleWatch(hashes []core.ConsistentHash) {
 	// TODO
-	fmt.Println(hashes)
+	fmt.Println("HASHES:", hashes)
 }

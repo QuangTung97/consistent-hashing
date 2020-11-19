@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"sharding/config"
 	"sharding/core"
 	"sharding/domain/hello"
@@ -54,6 +55,7 @@ func (r *Root) Run(ctx context.Context) {
 	go func() {
 		defer wg.Done()
 		r.port.Process(ctx, watchChan)
+		fmt.Println("Shutdown processor")
 	}()
 
 	wg.Wait()

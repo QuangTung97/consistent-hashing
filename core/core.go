@@ -43,6 +43,7 @@ KeepAliveLoop:
 			select {
 			case <-ctx.Done():
 				deleteHash(db, nodeID)
+				fmt.Println("Deleted consistent hash")
 				return
 
 			case <-time.After(10 * time.Second):
@@ -53,6 +54,7 @@ KeepAliveLoop:
 		select {
 		case <-ctx.Done():
 			deleteHash(db, nodeID)
+			fmt.Println("Deleted consistent hash")
 			return
 
 		case <-time.After(2 * time.Second):
@@ -73,6 +75,7 @@ func KeepAlive(ctx context.Context, db *sqlx.DB,
 	go func() {
 		defer wg.Done()
 		keepAlive(ctx, db, nodeID, hash, address)
+
 	}()
 }
 

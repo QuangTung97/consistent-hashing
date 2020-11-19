@@ -22,23 +22,24 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+func deciderAllMethods(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+	return true
+}
+
 func initServer(logger *zap.Logger) (*grpc.Server, *service.Root) {
-	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
-		return true
-	}
 
 	server := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			grpc_ctxtags.UnaryServerInterceptor(),
 			grpc_prometheus.UnaryServerInterceptor,
 			grpc_zap.UnaryServerInterceptor(logger),
-			grpc_zap.PayloadUnaryServerInterceptor(logger, decider),
+			// grpc_zap.PayloadUnaryServerInterceptor(logger, decider),
 		),
 		grpc.ChainStreamInterceptor(
 			grpc_ctxtags.StreamServerInterceptor(),
 			grpc_prometheus.StreamServerInterceptor,
 			grpc_zap.StreamServerInterceptor(logger),
-			grpc_zap.PayloadStreamServerInterceptor(logger, decider),
+			// grpc_zap.PayloadStreamServerInterceptor(logger, decider),
 		),
 	)
 
