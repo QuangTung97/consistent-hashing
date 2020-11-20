@@ -11,6 +11,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -98,6 +99,9 @@ func (s *ProxyService) call(ctx context.Context, hash core.Hash,
 			if retryCount > 3 {
 				return hello.ErrServiceUnavailable
 			}
+
+			fmt.Println("Null:", retryCount)
+
 			time.Sleep(time.Duration(retryCount) * 5 * time.Second)
 			continue
 		}
@@ -114,9 +118,21 @@ func (s *ProxyService) call(ctx context.Context, hash core.Hash,
 			s.connMap[addr] = conn
 			s.connMapMut.Unlock()
 
+			connectParams := grpc.ConnectParams{
+				Backoff: backoff.Config{
+					BaseDelay:  5 * time.Second,
+					Multiplier: 1.0,
+					Jitter:     0.3,
+					MaxDelay:   10 * time.Second,
+				},
+			}
+
 			var err error
 			conn.mut.Lock()
-			conn.clientConn, err = grpc.Dial(addr, grpc.WithInsecure())
+			conn.clientConn, err = grpc.Dial(addr,
+				grpc.WithConnectParams(connectParams),
+				grpc.WithInsecure(),
+			)
 			conn.mut.Unlock()
 
 			if err != nil {
@@ -143,6 +159,9 @@ func (s *ProxyService) call(ctx context.Context, hash core.Hash,
 				if retryCount > 3 {
 					return hello.ErrServiceUnavailable
 				}
+
+				fmt.Println("Aborted:", retryCount)
+
 				time.Sleep(time.Duration(retryCount) * 5 * time.Second)
 				continue
 			}
