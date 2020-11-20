@@ -27,6 +27,7 @@ func NewRepo(db *sqlx.DB) *Repo {
 	}
 }
 
+// Transact ...
 func (r *Repo) Transact(ctx context.Context,
 	fn func(ctx context.Context, tx hello.TxRepository) error,
 ) error {
@@ -46,7 +47,7 @@ func (r *Repo) Transact(ctx context.Context,
 
 func (r *txRepo) UpsertCounter(ctx context.Context, id hello.CounterID, value uint32) error {
 	query := `
-INSERT INTO counter (id, value) VALUE (?, ?) AS NE
+INSERT INTO counter (id, value) VALUE (?, ?) AS NEW
 ON DUPLICATE KEY UPDATE value = NEW.value
 `
 	_, err := r.tx.ExecContext(ctx, query, id, value)

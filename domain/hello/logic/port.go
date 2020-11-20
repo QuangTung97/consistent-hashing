@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sharding/core"
-	_ "sharding/domain/errors"
 	"sharding/domain/hello"
 	"time"
 )
 
+// Port an impl of Port interface
 type Port struct {
 	processor   *processor
 	commandChan chan<- command
@@ -16,6 +16,7 @@ type Port struct {
 
 var _ hello.Port = &Port{}
 
+// NewPort creates a Port
 func NewPort(repo hello.Repository) *Port {
 	cmdChan := make(chan command, maxBatchSize*2)
 	return &Port{
@@ -24,6 +25,7 @@ func NewPort(repo hello.Repository) *Port {
 	}
 }
 
+// Increase ...
 func (p *Port) Increase(ctx context.Context, id hello.CounterID) error {
 	replyChan := make(chan event, 1)
 
@@ -45,6 +47,7 @@ func (p *Port) Increase(ctx context.Context, id hello.CounterID) error {
 	}
 }
 
+// Process ...
 func (p *Port) Process(ctx context.Context, watchChan <-chan core.WatchResponse) {
 	for {
 		err := p.processor.process(ctx, watchChan)

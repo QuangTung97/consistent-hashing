@@ -10,16 +10,16 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type Error struct {
-	RpcCode codes.Code
-	Code    string
-	Message string
+type domainErr struct {
+	rpcCode codes.Code
+	code    string
+	message string
 }
 
 var registeredErrors = make(map[string]struct{})
 
-func (err Error) Error() string {
-	return fmt.Sprintf("code: %s, message: %s", err.Code, err.Message)
+func (err domainErr) Error() string {
+	return fmt.Sprintf("code: %s, message: %s", err.code, err.message)
 }
 
 func checkCode(code string) codes.Code {
@@ -47,6 +47,7 @@ func checkCode(code string) codes.Code {
 	return codes.Code(rpcCode)
 }
 
+// New creates an domain error
 func New(code, msg string) error {
 	rpcCode := checkCode(code)
 
@@ -57,22 +58,23 @@ func New(code, msg string) error {
 	}
 	registeredErrors[code] = struct{}{}
 
-	return Error{
-		RpcCode: rpcCode,
-		Code:    code,
-		Message: msg,
+	return domainErr{
+		rpcCode: rpcCode,
+		code:    code,
+		message: msg,
 	}
 }
 
+// UnaryServerInterceptor creates a server interceptor
 func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		resp, err := handler(ctx, req)
 		if err != nil {
-			domainErr, ok := err.(Error)
+			domainErr, ok := err.(domainErr)
 			if !ok {
 				return resp, err
 			}
-			st := status.New(domainErr.RpcCode, domainErr.Error())
+			st := status.New(domainErr.rpcCode, domainErr.Error())
 			return resp, st.Err()
 		}
 		return resp, nil

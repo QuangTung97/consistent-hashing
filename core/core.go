@@ -9,14 +9,20 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// NodeID for node id
+type NodeID uint32
+
+// Hash for hash value
+type Hash uint32
+
 // ConsistentHash a node in consistent hashing
 type ConsistentHash struct {
-	NodeID  uint32 `db:"node_id"`
-	Hash    uint32 `db:"hash"`
+	NodeID  NodeID `db:"node_id"`
+	Hash    Hash   `db:"hash"`
 	Address string `db:"address"`
 }
 
-func deleteHash(db *sqlx.DB, nodeID uint32) {
+func deleteHash(db *sqlx.DB, nodeID NodeID) {
 	query := `DELETE FROM consistent_hash WHERE node_id = ?`
 	_, err := db.Exec(query, nodeID)
 	if err != nil {
@@ -33,7 +39,7 @@ ON DUPLICATE KEY UPDATE
     expired_at = NEW.expired_at
 `
 
-func keepAlive(ctx context.Context, db *sqlx.DB, nodeID uint32, hash uint32, address string) {
+func keepAlive(ctx context.Context, db *sqlx.DB, nodeID NodeID, hash Hash, address string) {
 KeepAliveLoop:
 	for {
 		_, err := db.Exec(keepAliveQuery, nodeID, hash, address)
@@ -65,7 +71,7 @@ KeepAliveLoop:
 
 // KeepAlive keeps the current node alive
 func KeepAlive(ctx context.Context, db *sqlx.DB,
-	nodeID uint32, hash uint32, address string, wg *sync.WaitGroup,
+	nodeID NodeID, hash Hash, address string, wg *sync.WaitGroup,
 ) {
 	_, err := db.Exec(keepAliveQuery, nodeID, hash, address)
 	if err != nil {
