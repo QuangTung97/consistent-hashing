@@ -21,14 +21,13 @@ func NewService(port domain.Port) *Service {
 	}
 }
 
-// Hello do hello
-func (s *Service) Hello(ctx context.Context, req *rpc.HelloRequest,
-) (*rpc.HelloResponse, error) {
-
-	err := s.port.Increase(ctx, 100)
+// Increase do hello
+func (s *Service) Increase(ctx context.Context, req *rpc.IncreaseRequest,
+) (*rpc.IncreaseResponse, error) {
+	err := s.port.Increase(ctx, domain.CounterID(req.Counter))
 	if err != nil {
 		return nil, err
 	}
 
-	return &rpc.HelloResponse{}, nil
+	return &rpc.IncreaseResponse{}, nil
 }

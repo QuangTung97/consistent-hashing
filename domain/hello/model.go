@@ -35,4 +35,7 @@ var (
 
 	// ErrCommandTimeout ...
 	ErrCommandTimeout = errors.New("10001", "Command timeout")
+
+	// ErrServiceUnavailable
+	ErrServiceUnavailable = errors.New("14001", "Service unavailable")
 )

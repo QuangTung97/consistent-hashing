@@ -1,5 +1,6 @@
 /rpc
 /server
 /client
+/proxy
 /*.log
 /.idea

@@ -6,21 +6,18 @@ option go_package = "sharding/rpc/hello/v1;hello";
 
 import "google/api/annotations.proto";
 
-import "google/protobuf/timestamp.proto";
-
-message HelloRequest {
-  string name = 1;
-  google.protobuf.Timestamp created_at = 2;
+message IncreaseRequest {
+  uint32 counter = 1;
 }
 
-message HelloResponse {
+message IncreaseResponse {
 }
 
 
 service Hello {
-  rpc Hello (HelloRequest) returns (HelloResponse) {
+  rpc Increase (IncreaseRequest) returns (IncreaseResponse) {
     option (google.api.http) = {
-      post: "/api/hello"
+      post: "/api/inc"
       body: "*"
     };
   }

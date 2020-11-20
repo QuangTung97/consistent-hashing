@@ -15,14 +15,35 @@ type NodeConfig struct {
 	Port uint16      `mapstructure:"port"`
 }
 
+// ProxyConfig for configure proxy
+type ProxyConfig struct {
+	Port uint16 `mapstructure:"port"`
+}
+
 // Config for app config
 type Config struct {
-	Node NodeConfig `mapstructure:"node"`
+	Nodes []NodeConfig `mapstructure:"nodes"`
+	Proxy ProxyConfig  `mapstructure:"proxy"`
 }
 
 // ToAddress constructs a full address
 func (c NodeConfig) ToAddress() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
+}
+
+// ToGatewayAddress constructs a full address of grpc gateway
+func (c NodeConfig) ToGatewayAddress() string {
+	return fmt.Sprintf("%s:%d", c.Host, c.Port+100)
+}
+
+// ToListenAddr
+func (c NodeConfig) ToListenAddr() string {
+	return fmt.Sprintf(":%d", c.Port)
+}
+
+// ToGatewayListenAddr
+func (c NodeConfig) ToGatewayListenAddr() string {
+	return fmt.Sprintf(":%d", c.Port+100)
 }
 
 func initConfig(vip *viper.Viper) Config {

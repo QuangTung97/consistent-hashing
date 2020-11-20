@@ -11,7 +11,7 @@ func TestGetNodeAddress(t *testing.T) {
 		name     string
 		hashes   []ConsistentHash
 		hash     Hash
-		expected NodeAddress
+		expected NullAddress
 	}{
 		{
 			name: "empty",
@@ -26,7 +26,7 @@ func TestGetNodeAddress(t *testing.T) {
 				},
 			},
 			hash: 200,
-			expected: NodeAddress{
+			expected: NullAddress{
 				Valid:   true,
 				Address: "node1",
 			},
@@ -41,7 +41,7 @@ func TestGetNodeAddress(t *testing.T) {
 				},
 			},
 			hash: 100,
-			expected: NodeAddress{
+			expected: NullAddress{
 				Valid:   true,
 				Address: "node1",
 			},
@@ -61,7 +61,7 @@ func TestGetNodeAddress(t *testing.T) {
 				},
 			},
 			hash: 201,
-			expected: NodeAddress{
+			expected: NullAddress{
 				Valid:   true,
 				Address: "node2",
 			},
@@ -81,7 +81,7 @@ func TestGetNodeAddress(t *testing.T) {
 				},
 			},
 			hash: 400,
-			expected: NodeAddress{
+			expected: NullAddress{
 				Valid:   true,
 				Address: "node2",
 			},
@@ -101,7 +101,7 @@ func TestGetNodeAddress(t *testing.T) {
 				},
 			},
 			hash: 401,
-			expected: NodeAddress{
+			expected: NullAddress{
 				Valid:   true,
 				Address: "node1",
 			},
@@ -121,7 +121,7 @@ func TestGetNodeAddress(t *testing.T) {
 				},
 			},
 			hash: 5000,
-			expected: NodeAddress{
+			expected: NullAddress{
 				Valid:   true,
 				Address: "node1",
 			},
@@ -141,7 +141,7 @@ func TestGetNodeAddress(t *testing.T) {
 				},
 			},
 			hash: 0,
-			expected: NodeAddress{
+			expected: NullAddress{
 				Valid:   true,
 				Address: "node1",
 			},
@@ -161,7 +161,7 @@ func TestGetNodeAddress(t *testing.T) {
 				},
 			},
 			hash: 200,
-			expected: NodeAddress{
+			expected: NullAddress{
 				Valid:   true,
 				Address: "node1",
 			},

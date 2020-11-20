@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"fmt"
+	"sharding/config"
 	"sharding/core"
 	"sharding/domain/hello"
 	"time"
@@ -17,10 +18,10 @@ type Port struct {
 var _ hello.Port = &Port{}
 
 // NewPort creates a Port
-func NewPort(repo hello.Repository) *Port {
+func NewPort(nodeConfig config.NodeConfig, repo hello.Repository) *Port {
 	cmdChan := make(chan command, maxBatchSize*2)
 	return &Port{
-		processor:   newProcessor(repo, cmdChan),
+		processor:   newProcessor(nodeConfig.ID, repo, cmdChan),
 		commandChan: cmdChan,
 	}
 }

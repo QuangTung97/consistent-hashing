@@ -27,7 +27,7 @@ func deciderAllMethods(ctx context.Context, fullMethodName string, servingObject
 	return true
 }
 
-func initServer(logger *zap.Logger) (*grpc.Server, *service.Root) {
+func initServer(logger *zap.Logger) (*grpc.Server, *service.ProxyRoot) {
 
 	server := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
@@ -45,7 +45,7 @@ func initServer(logger *zap.Logger) (*grpc.Server, *service.Root) {
 		),
 	)
 
-	root := service.InitRoot(server)
+	root := service.InitProxyRoot(server)
 
 	grpc_prometheus.Register(server)
 	grpc_prometheus.EnableHandlingTimeHistogram()
@@ -56,7 +56,7 @@ func initServer(logger *zap.Logger) (*grpc.Server, *service.Root) {
 
 	opts := []grpc.DialOption{grpc.WithInsecure()}
 
-	service.InitGatewayEndpoints(mux, root.GetNodeConfig().ToAddress(), opts)
+	service.InitGatewayEndpoints(mux, root.GetGRPCAddress(), opts)
 
 	http.Handle("/api/", mux)
 	http.Handle("/metrics", promhttp.Handler())
@@ -75,13 +75,13 @@ func main() {
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt, os.Kill)
 
-	lis, err := net.Listen("tcp", root.GetNodeConfig().ToListenAddr())
+	lis, err := net.Listen("tcp", root.GetGPRCListenAddr())
 	if err != nil {
 		panic(err)
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
@@ -93,7 +93,7 @@ func main() {
 	}()
 
 	httpServer := http.Server{
-		Addr: root.GetNodeConfig().ToGatewayListenAddr(),
+		Addr: root.GetGPRCGatewayListenAddr(),
 	}
 
 	go func() {
@@ -112,8 +112,6 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 
 	go func() {
-		defer wg.Done()
-
 		root.Run(ctx)
 	}()
 

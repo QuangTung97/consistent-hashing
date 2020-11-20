@@ -55,16 +55,14 @@ func Equals(a, b []ConsistentHash) bool {
 	return true
 }
 
-// NodeAddress represent valid or invalid node address
-type NodeAddress struct {
-	Valid   bool
-	Address string
+type nullConsistentHash struct {
+	Valid bool
+	Hash  ConsistentHash
 }
 
-// GetNodeAddress returns the address of node for consistent hashing
-func GetNodeAddress(sortedHashes []ConsistentHash, hash Hash) NodeAddress {
+func getConsistentHashingElem(sortedHashes []ConsistentHash, hash Hash) nullConsistentHash {
 	if len(sortedHashes) == 0 {
-		return NodeAddress{
+		return nullConsistentHash{
 			Valid: false,
 		}
 	}
@@ -85,14 +83,42 @@ func GetNodeAddress(sortedHashes []ConsistentHash, hash Hash) NodeAddress {
 	}
 
 	if first == n {
-		return NodeAddress{
-			Valid:   true,
-			Address: sortedHashes[0].Address,
+		return nullConsistentHash{
+			Valid: true,
+			Hash:  sortedHashes[0],
 		}
 	}
 
-	return NodeAddress{
+	return nullConsistentHash{
+		Valid: true,
+		Hash:  sortedHashes[first],
+	}
+}
+
+// GetNodeAddress returns the address of node for consistent hashing
+func GetNodeAddress(sortedHashes []ConsistentHash, hash Hash) NullAddress {
+	nullHash := getConsistentHashingElem(sortedHashes, hash)
+	if !nullHash.Valid {
+		return NullAddress{
+			Valid: false,
+		}
+	}
+	return NullAddress{
 		Valid:   true,
-		Address: sortedHashes[first].Address,
+		Address: nullHash.Hash.Address,
+	}
+}
+
+// GetNodeID
+func GetNodeID(sortedHashes []ConsistentHash, hash Hash) NullNodeID {
+	nullHash := getConsistentHashingElem(sortedHashes, hash)
+	if !nullHash.Valid {
+		return NullNodeID{
+			Valid: false,
+		}
+	}
+	return NullNodeID{
+		Valid:  true,
+		NodeID: nullHash.Hash.NodeID,
 	}
 }

@@ -9,18 +9,31 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// NodeID for node id
-type NodeID uint32
+type (
+	// NodeID for node id
+	NodeID uint32
 
-// Hash for hash value
-type Hash uint32
+	// Hash for hash value
+	Hash uint32
 
-// ConsistentHash a node in consistent hashing
-type ConsistentHash struct {
-	NodeID  NodeID `db:"node_id"`
-	Hash    Hash   `db:"hash"`
-	Address string `db:"address"`
-}
+	// ConsistentHash a node in consistent hashing
+	ConsistentHash struct {
+		NodeID  NodeID `db:"node_id"`
+		Hash    Hash   `db:"hash"`
+		Address string `db:"address"`
+	}
+
+	// NodeAddress represent valid or invalid node address
+	NullAddress struct {
+		Valid   bool
+		Address string
+	}
+
+	NullNodeID struct {
+		Valid  bool
+		NodeID NodeID
+	}
+)
 
 func deleteHash(db *sqlx.DB, nodeID NodeID) {
 	query := `DELETE FROM consistent_hash WHERE node_id = ?`

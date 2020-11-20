@@ -59,14 +59,17 @@ type processor struct {
 	repo       hello.Repository
 	cmdChan    <-chan command
 	counterMap map[hello.CounterID]uint32
-	watchChan  <-chan core.WatchResponse
+
+	hashes     []core.ConsistentHash
+	selfNodeID core.NodeID
 }
 
-func newProcessor(repo hello.Repository, cmdChan <-chan command) *processor {
+func newProcessor(selfNodeID core.NodeID, repo hello.Repository, cmdChan <-chan command) *processor {
 	return &processor{
 		repo:       repo,
 		cmdChan:    cmdChan,
 		counterMap: make(map[hello.CounterID]uint32),
+		selfNodeID: selfNodeID,
 	}
 }
 
@@ -127,7 +130,10 @@ type processResponse struct {
 	replyEvents []replyEvent
 }
 
-func processCommandsPure(counterMap map[hello.CounterID]uint32, commands []command) processResponse {
+func processCommandsPure(
+	hashes []core.ConsistentHash, selfNodeID core.NodeID,
+	counterMap map[hello.CounterID]uint32, commands []command,
+) processResponse {
 	updates := make(map[hello.CounterID]uint32)
 	replyEvents := make([]replyEvent, 0, len(commands))
 
@@ -135,6 +141,19 @@ func processCommandsPure(counterMap map[hello.CounterID]uint32, commands []comma
 		switch cmd.Type() {
 		case commandTypeInc:
 			cmdInc := cmd.(commandInc)
+			fmt.Println(cmdInc)
+
+			hash := hashCounterID(cmdInc.counterID)
+			fmt.Println(hash)
+
+			nullNodeID := core.GetNodeID(hashes, hash)
+			if !nullNodeID.Valid || nullNodeID.NodeID != selfNodeID {
+				replyEvents = append(replyEvents, replyEvent{
+					replyChan: cmdInc.replyChan,
+					event:     eventInc{err: hello.ErrCommandAborted},
+				})
+				break
+			}
 
 			counterMap[cmdInc.counterID] = counterMap[cmdInc.counterID] + 1
 			updates[cmdInc.counterID] = counterMap[cmdInc.counterID]
@@ -155,7 +174,7 @@ func processCommandsPure(counterMap map[hello.CounterID]uint32, commands []comma
 }
 
 func (p *processor) processCommands(cmds []command) error {
-	res := processCommandsPure(p.counterMap, cmds)
+	res := processCommandsPure(p.hashes, p.selfNodeID, p.counterMap, cmds)
 
 	// save to database, close all channels if error
 	ctx := context.Background()
@@ -181,7 +200,19 @@ func (p *processor) processCommands(cmds []command) error {
 	return nil
 }
 
-func (p *processor) handleWatch(hashes []core.ConsistentHash) {
-	// TODO
-	fmt.Println("HASHES:", hashes)
+func (p *processor) handleWatch(inputHashes []core.ConsistentHash) {
+	hashes := make([]core.ConsistentHash, len(inputHashes))
+	copy(hashes, inputHashes)
+	core.Sort(hashes)
+
+	if core.Equals(hashes, p.hashes) {
+		return
+	}
+
+	fmt.Println("Hashes:", hashes)
+	p.hashes = hashes
+}
+
+func hashCounterID(counterID hello.CounterID) core.Hash {
+	return core.HashUint32(uint32(counterID))
 }

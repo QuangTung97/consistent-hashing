@@ -1,5 +1,12 @@
-node:
-  id: 1
-  hash: 100
-  host: localhost
-  port: 5000
+nodes:
+  - id: 1
+    hash: 0xffffffff
+    host: localhost
+    port: 5000
+  - id: 2
+    hash: 0x7fffffff
+    host: localhost
+    port: 6000
+
+proxy:
+  port: 7000

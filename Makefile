@@ -22,6 +22,7 @@ endef
 all:
 	go build -o server cmd/server/main.go
 	go build -o client cmd/client/main.go
+	go build -o proxy cmd/proxy/main.go
 
 gen:
 	rm -rf rpc
