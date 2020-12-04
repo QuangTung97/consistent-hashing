@@ -60,7 +60,7 @@ type processor struct {
 	cmdChan    <-chan command
 	counterMap map[hello.CounterID]uint32
 
-	hashes     []core.ConsistentHash
+	nodes      []core.NodeInfo
 	selfNodeID core.NodeID
 }
 
@@ -81,7 +81,7 @@ func (p *processor) process(ctx context.Context, watchChan <-chan core.WatchResp
 			cmds = append(cmds, first)
 
 		case wr := <-watchChan:
-			p.handleWatch(wr.Hashes)
+			p.handleWatch(wr.Nodes)
 
 		case <-ctx.Done():
 			return nil
@@ -97,7 +97,7 @@ func (p *processor) process(ctx context.Context, watchChan <-chan core.WatchResp
 				cmds = append(cmds, c)
 
 			case wr := <-watchChan:
-				p.handleWatch(wr.Hashes)
+				p.handleWatch(wr.Nodes)
 
 			case <-ctx.Done():
 				return nil
@@ -131,7 +131,7 @@ type processResponse struct {
 }
 
 func processCommandsPure(
-	hashes []core.ConsistentHash, selfNodeID core.NodeID,
+	nodes []core.NodeInfo, selfNodeID core.NodeID,
 	counterMap map[hello.CounterID]uint32, commands []command,
 ) processResponse {
 	updates := make(map[hello.CounterID]uint32)
@@ -146,7 +146,7 @@ func processCommandsPure(
 			hash := hashCounterID(cmdInc.counterID)
 			fmt.Println(hash)
 
-			nullNodeID := core.GetNodeID(hashes, hash)
+			nullNodeID := core.GetNodeID(nodes, hash)
 			if !nullNodeID.Valid || nullNodeID.NodeID != selfNodeID {
 				replyEvents = append(replyEvents, replyEvent{
 					replyChan: cmdInc.replyChan,
@@ -174,7 +174,7 @@ func processCommandsPure(
 }
 
 func (p *processor) processCommands(cmds []command) error {
-	res := processCommandsPure(p.hashes, p.selfNodeID, p.counterMap, cmds)
+	res := processCommandsPure(p.nodes, p.selfNodeID, p.counterMap, cmds)
 
 	// save to database, close all channels if error
 	ctx := context.Background()
@@ -200,17 +200,9 @@ func (p *processor) processCommands(cmds []command) error {
 	return nil
 }
 
-func (p *processor) handleWatch(inputHashes []core.ConsistentHash) {
-	hashes := make([]core.ConsistentHash, len(inputHashes))
-	copy(hashes, inputHashes)
-	core.Sort(hashes)
-
-	if core.Equals(hashes, p.hashes) {
-		return
-	}
-
-	fmt.Println("Hashes:", hashes)
-	p.hashes = hashes
+func (p *processor) handleWatch(nodes []core.NodeInfo) {
+	fmt.Println(nodes)
+	p.nodes = nodes
 }
 
 func hashCounterID(counterID hello.CounterID) core.Hash {

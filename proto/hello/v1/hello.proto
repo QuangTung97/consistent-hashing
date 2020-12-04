@@ -13,11 +13,23 @@ message IncreaseRequest {
 message IncreaseResponse {
 }
 
+message PingRequest {
+}
+
+message PingResponse {
+}
 
 service Hello {
   rpc Increase (IncreaseRequest) returns (IncreaseResponse) {
     option (google.api.http) = {
       post: "/api/inc"
+      body: "*"
+    };
+  }
+
+  rpc Ping (PingRequest) returns (stream PingResponse) {
+    option (google.api.http) = {
+      post: "/api/ping"
       body: "*"
     };
   }

@@ -36,12 +36,12 @@ func (c NodeConfig) ToGatewayAddress() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port+100)
 }
 
-// ToListenAddr
+// ToListenAddr to form :5000
 func (c NodeConfig) ToListenAddr() string {
 	return fmt.Sprintf(":%d", c.Port)
 }
 
-// ToGatewayListenAddr
+// ToGatewayListenAddr to form :5100
 func (c NodeConfig) ToGatewayListenAddr() string {
 	return fmt.Sprintf(":%d", c.Port+100)
 }

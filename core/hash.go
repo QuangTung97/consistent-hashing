@@ -7,15 +7,15 @@ import (
 	"github.com/spaolacci/murmur3"
 )
 
-type sortConsistentHash []ConsistentHash
+type sortNodeInfo []NodeInfo
 
-var _ sort.Interface = sortConsistentHash{}
+var _ sort.Interface = sortNodeInfo{}
 
-func (s sortConsistentHash) Len() int {
+func (s sortNodeInfo) Len() int {
 	return len(s)
 }
 
-func (s sortConsistentHash) Less(i, j int) bool {
+func (s sortNodeInfo) Less(i, j int) bool {
 	if s[i].Hash < s[j].Hash {
 		return true
 	} else if s[i].Hash > s[j].Hash {
@@ -25,7 +25,7 @@ func (s sortConsistentHash) Less(i, j int) bool {
 	}
 }
 
-func (s sortConsistentHash) Swap(i, j int) {
+func (s sortNodeInfo) Swap(i, j int) {
 	s[j], s[i] = s[i], s[j]
 }
 
@@ -36,13 +36,13 @@ func HashUint32(num uint32) Hash {
 	return Hash(murmur3.Sum32(buf[:]))
 }
 
-// Sort sorts the hashes
-func Sort(hashes []ConsistentHash) {
-	sort.Sort(sortConsistentHash(hashes))
+// Sort sorts the node infos
+func Sort(nodes []NodeInfo) {
+	sort.Sort(sortNodeInfo(nodes))
 }
 
 // Equals compare for equality
-func Equals(a, b []ConsistentHash) bool {
+func Equals(a, b []NodeInfo) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -55,25 +55,25 @@ func Equals(a, b []ConsistentHash) bool {
 	return true
 }
 
-type nullConsistentHash struct {
+type nullNodeInfo struct {
 	Valid bool
-	Hash  ConsistentHash
+	Node  NodeInfo
 }
 
-func getConsistentHashingElem(sortedHashes []ConsistentHash, hash Hash) nullConsistentHash {
-	if len(sortedHashes) == 0 {
-		return nullConsistentHash{
+func getConsistentHashingElem(sortedNodes []NodeInfo, hash Hash) nullNodeInfo {
+	if len(sortedNodes) == 0 {
+		return nullNodeInfo{
 			Valid: false,
 		}
 	}
 
-	n := len(sortedHashes)
+	n := len(sortedNodes)
 	first := 0
 	last := n
 
 	for first != last {
 		mid := (first + last) / 2
-		midValue := sortedHashes[mid].Hash
+		midValue := sortedNodes[mid].Hash
 
 		if midValue < hash {
 			first = mid + 1
@@ -83,42 +83,42 @@ func getConsistentHashingElem(sortedHashes []ConsistentHash, hash Hash) nullCons
 	}
 
 	if first == n {
-		return nullConsistentHash{
+		return nullNodeInfo{
 			Valid: true,
-			Hash:  sortedHashes[0],
+			Node:  sortedNodes[0],
 		}
 	}
 
-	return nullConsistentHash{
+	return nullNodeInfo{
 		Valid: true,
-		Hash:  sortedHashes[first],
+		Node:  sortedNodes[first],
 	}
 }
 
 // GetNodeAddress returns the address of node for consistent hashing
-func GetNodeAddress(sortedHashes []ConsistentHash, hash Hash) NullAddress {
-	nullHash := getConsistentHashingElem(sortedHashes, hash)
-	if !nullHash.Valid {
+func GetNodeAddress(sortedNodes []NodeInfo, hash Hash) NullAddress {
+	nullNode := getConsistentHashingElem(sortedNodes, hash)
+	if !nullNode.Valid {
 		return NullAddress{
 			Valid: false,
 		}
 	}
 	return NullAddress{
 		Valid:   true,
-		Address: nullHash.Hash.Address,
+		Address: nullNode.Node.Address,
 	}
 }
 
-// GetNodeID
-func GetNodeID(sortedHashes []ConsistentHash, hash Hash) NullNodeID {
-	nullHash := getConsistentHashingElem(sortedHashes, hash)
-	if !nullHash.Valid {
+// GetNodeID returns the nodeID of node for consistent hashing
+func GetNodeID(sortedNodes []NodeInfo, hash Hash) NullNodeID {
+	nullNode := getConsistentHashingElem(sortedNodes, hash)
+	if !nullNode.Valid {
 		return NullNodeID{
 			Valid: false,
 		}
 	}
 	return NullNodeID{
 		Valid:  true,
-		NodeID: nullHash.Hash.NodeID,
+		NodeID: nullNode.Node.NodeID,
 	}
 }

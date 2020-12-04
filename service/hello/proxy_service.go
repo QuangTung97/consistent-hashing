@@ -9,38 +9,29 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-type Connection struct {
-	mut        sync.RWMutex
-	clientConn *grpc.ClientConn
-}
-
 // ProxyService for proxy gRPC
 type ProxyService struct {
 	rpc.UnsafeHelloServer
+	logger *zap.Logger
 
-	db *sqlx.DB
-
-	mut    sync.RWMutex
-	hashes []core.ConsistentHash
-
-	connMapMut sync.RWMutex
-	connMap    map[string]*Connection
+	mut     sync.RWMutex
+	nodes   []core.NodeInfo
+	connMap map[string]*grpc.ClientConn
 }
 
 var _ rpc.HelloServer = &ProxyService{}
 
 // NewProxyService create a new ProxyService
-func NewProxyService(db *sqlx.DB) *ProxyService {
+func NewProxyService() *ProxyService {
 	return &ProxyService{
-		db:      db,
-		connMap: make(map[string]*Connection),
+		connMap: make(map[string]*grpc.ClientConn),
 	}
 }
 
@@ -64,24 +55,55 @@ func (s *ProxyService) Increase(ctx context.Context, req *rpc.IncreaseRequest,
 	return res, nil
 }
 
-// Watch for hashes
-func (s *ProxyService) Watch(inputHashes []core.ConsistentHash) {
-	hashes := make([]core.ConsistentHash, len(inputHashes))
-	copy(hashes, inputHashes)
+// Ping for core's watch
+func (s *ProxyService) Ping(req *rpc.PingRequest, server rpc.Hello_PingServer) error {
+	return nil
+}
 
-	core.Sort(hashes)
+// Watch for node infos
+func (s *ProxyService) Watch(newNodes []core.NodeInfo) {
+	fmt.Println(newNodes)
 
+	copyConnMap := make(map[string]*grpc.ClientConn)
 	s.mut.RLock()
-	serviceHashes := s.hashes
+	for key, val := range s.connMap {
+		copyConnMap[key] = val
+	}
+	oldNodes := s.nodes
 	s.mut.RUnlock()
 
-	if !core.Equals(hashes, serviceHashes) {
-		fmt.Println(hashes)
+	diff := core.ComputeAddressesDifference(oldNodes, newNodes)
 
-		s.mut.Lock()
-		s.hashes = hashes
-		s.mut.Unlock()
+	for _, deleted := range diff.Deleted {
+		delete(copyConnMap, deleted)
 	}
+
+	for _, addr := range diff.Inserted {
+		connectParams := grpc.ConnectParams{
+			Backoff: backoff.Config{
+				BaseDelay:  5 * time.Second,
+				Multiplier: 1.0,
+				Jitter:     0.3,
+				MaxDelay:   10 * time.Second,
+			},
+		}
+
+		conn, err := grpc.Dial(addr,
+			grpc.WithConnectParams(connectParams),
+			grpc.WithInsecure(),
+		)
+		if err != nil {
+			s.logger.Error("Dial", zap.Error(err))
+			continue
+		}
+
+		copyConnMap[addr] = conn
+	}
+
+	s.mut.Lock()
+	s.nodes = newNodes
+	s.connMap = copyConnMap
+	s.mut.Unlock()
 }
 
 func (s *ProxyService) call(ctx context.Context, hash core.Hash,
@@ -90,64 +112,38 @@ func (s *ProxyService) call(ctx context.Context, hash core.Hash,
 	retryCount := 0
 	for {
 		s.mut.RLock()
-		serviceHashes := s.hashes
+		serviceNodes := s.nodes
+		connMap := s.connMap
 		s.mut.RUnlock()
 
-		nullAddress := core.GetNodeAddress(serviceHashes, hash)
+		nullAddress := core.GetNodeAddress(serviceNodes, hash)
 		if !nullAddress.Valid {
 			retryCount++
 			if retryCount > 3 {
 				return hello.ErrServiceUnavailable
 			}
 
-			fmt.Println("Null:", retryCount)
+			fmt.Println("Null Address:", retryCount)
 
 			time.Sleep(time.Duration(retryCount) * 5 * time.Second)
 			continue
 		}
 
 		addr := nullAddress.Address
-		s.connMapMut.RLock()
-		conn, existed := s.connMap[addr]
-		s.connMapMut.RUnlock()
-
-		if !existed {
-			conn = &Connection{}
-
-			s.connMapMut.Lock()
-			s.connMap[addr] = conn
-			s.connMapMut.Unlock()
-
-			connectParams := grpc.ConnectParams{
-				Backoff: backoff.Config{
-					BaseDelay:  5 * time.Second,
-					Multiplier: 1.0,
-					Jitter:     0.3,
-					MaxDelay:   10 * time.Second,
-				},
+		conn, ok := connMap[addr]
+		if !ok {
+			retryCount++
+			if retryCount > 3 {
+				return hello.ErrServiceUnavailable
 			}
 
-			var err error
-			conn.mut.Lock()
-			conn.clientConn, err = grpc.Dial(addr,
-				grpc.WithConnectParams(connectParams),
-				grpc.WithInsecure(),
-			)
-			conn.mut.Unlock()
+			fmt.Println("No conn")
 
-			if err != nil {
-				s.connMapMut.Lock()
-				delete(s.connMap, addr)
-				s.connMapMut.Unlock()
-				return err
-			}
+			time.Sleep(time.Duration(retryCount) * 5 * time.Second)
+			continue
 		}
 
-		conn.mut.RLock()
-		clientConn := conn.clientConn
-		conn.mut.RUnlock()
-
-		err := fn(ctx, clientConn)
+		err := fn(ctx, conn)
 		if err != nil {
 			st, ok := status.FromError(err)
 			if !ok {
@@ -165,6 +161,8 @@ func (s *ProxyService) call(ctx context.Context, hash core.Hash,
 				time.Sleep(time.Duration(retryCount) * 5 * time.Second)
 				continue
 			}
+
+			return err
 		}
 
 		return nil

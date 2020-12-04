@@ -28,7 +28,6 @@ func deciderAllMethods(ctx context.Context, fullMethodName string, servingObject
 }
 
 func initServer(logger *zap.Logger) (*grpc.Server, *service.ProxyRoot) {
-
 	server := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			grpc_ctxtags.UnaryServerInterceptor(),
@@ -45,7 +44,7 @@ func initServer(logger *zap.Logger) (*grpc.Server, *service.ProxyRoot) {
 		),
 	)
 
-	root := service.InitProxyRoot(server)
+	root := service.InitProxyRoot(server, logger)
 
 	grpc_prometheus.Register(server)
 	grpc_prometheus.EnableHandlingTimeHistogram()

@@ -5,42 +5,45 @@ import (
 	"fmt"
 	"sharding/config"
 	"sharding/core"
+	"sharding/core/impl"
 	hello_rpc "sharding/rpc/hello/v1"
 	"sharding/service/hello"
 	hello_service "sharding/service/hello"
 
-	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 // ProxyRoot for proxy
 type ProxyRoot struct {
 	proxyConfig config.ProxyConfig
-	db          *sqlx.DB
+	core        core.Service
 	service     *hello.ProxyService
 }
 
 // InitProxyRoot creates a Root
-func InitProxyRoot(server *grpc.Server) *ProxyRoot {
+func InitProxyRoot(server *grpc.Server, logger *zap.Logger) *ProxyRoot {
 	cfg := config.LoadConfig()
 
-	db := sqlx.MustConnect("mysql", "root:1@tcp(localhost:3306)/bench?parseTime=true")
-	s := hello_service.NewProxyService(db)
+	// db := sqlx.MustConnect("mysql", "root:1@tcp(localhost:3306)/bench?parseTime=true")
+	coreService := impl.NewPeerCoreService(cfg.Nodes, core.NullNodeID{}, logger)
+
+	s := hello_service.NewProxyService()
 
 	hello_rpc.RegisterHelloServer(server, s)
 
 	return &ProxyRoot{
 		proxyConfig: cfg.Proxy,
-		db:          db,
+		core:        coreService,
 		service:     s,
 	}
 }
 
 // Run ...
 func (r *ProxyRoot) Run(ctx context.Context) {
-	watchChan := core.Watch(r.db)
+	watchChan := r.core.Watch(ctx)
 	for wr := range watchChan {
-		r.service.Watch(wr.Hashes)
+		r.service.Watch(wr.Nodes)
 	}
 }
 

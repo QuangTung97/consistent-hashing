@@ -9,15 +9,17 @@ import (
 // Service for gRPC
 type Service struct {
 	rpc.UnsafeHelloServer
-	port domain.Port
+	port      domain.Port
+	closeChan <-chan struct{}
 }
 
 var _ rpc.HelloServer = &Service{}
 
 // NewService create a new Service
-func NewService(port domain.Port) *Service {
+func NewService(port domain.Port, closeChan <-chan struct{}) *Service {
 	return &Service{
-		port: port,
+		port:      port,
+		closeChan: closeChan,
 	}
 }
 
@@ -30,4 +32,16 @@ func (s *Service) Increase(ctx context.Context, req *rpc.IncreaseRequest,
 	}
 
 	return &rpc.IncreaseResponse{}, nil
+}
+
+// Ping for core's watch
+func (s *Service) Ping(req *rpc.PingRequest, server rpc.Hello_PingServer) error {
+	err := server.Send(&rpc.PingResponse{})
+	if err != nil {
+		return err
+	}
+
+	<-s.closeChan
+
+	return nil
 }

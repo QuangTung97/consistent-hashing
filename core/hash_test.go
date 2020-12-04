@@ -9,7 +9,7 @@ import (
 func TestGetNodeAddress(t *testing.T) {
 	table := []struct {
 		name     string
-		hashes   []ConsistentHash
+		nodes    []NodeInfo
 		hash     Hash
 		expected NullAddress
 	}{
@@ -18,7 +18,7 @@ func TestGetNodeAddress(t *testing.T) {
 		},
 		{
 			name: "single",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID:  1,
 					Hash:    200,
@@ -33,7 +33,7 @@ func TestGetNodeAddress(t *testing.T) {
 		},
 		{
 			name: "single-wrap-around",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID:  1,
 					Hash:    200,
@@ -48,7 +48,7 @@ func TestGetNodeAddress(t *testing.T) {
 		},
 		{
 			name: "two-middle",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID:  1,
 					Hash:    200,
@@ -68,7 +68,7 @@ func TestGetNodeAddress(t *testing.T) {
 		},
 		{
 			name: "two-middle",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID:  1,
 					Hash:    200,
@@ -88,7 +88,7 @@ func TestGetNodeAddress(t *testing.T) {
 		},
 		{
 			name: "two-after",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID:  1,
 					Hash:    200,
@@ -108,7 +108,7 @@ func TestGetNodeAddress(t *testing.T) {
 		},
 		{
 			name: "two-after",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID:  1,
 					Hash:    200,
@@ -128,7 +128,7 @@ func TestGetNodeAddress(t *testing.T) {
 		},
 		{
 			name: "two-begin",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID:  1,
 					Hash:    200,
@@ -148,7 +148,7 @@ func TestGetNodeAddress(t *testing.T) {
 		},
 		{
 			name: "two-begin",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID:  1,
 					Hash:    200,
@@ -170,7 +170,7 @@ func TestGetNodeAddress(t *testing.T) {
 
 	for _, e := range table {
 		t.Run(e.name, func(t *testing.T) {
-			result := GetNodeAddress(e.hashes, e.hash)
+			result := GetNodeAddress(e.nodes, e.hash)
 			assert.Equal(t, e.expected, result)
 		})
 	}
@@ -179,21 +179,21 @@ func TestGetNodeAddress(t *testing.T) {
 func TestSort(t *testing.T) {
 	table := []struct {
 		name     string
-		hashes   []ConsistentHash
-		expected []ConsistentHash
+		nodes    []NodeInfo
+		expected []NodeInfo
 	}{
 		{
 			name: "empty",
 		},
 		{
 			name: "one",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID: 1,
 					Hash:   100,
 				},
 			},
-			expected: []ConsistentHash{
+			expected: []NodeInfo{
 				{
 					NodeID: 1,
 					Hash:   100,
@@ -202,7 +202,7 @@ func TestSort(t *testing.T) {
 		},
 		{
 			name: "two-difference-hash",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID: 2,
 					Hash:   200,
@@ -212,7 +212,7 @@ func TestSort(t *testing.T) {
 					Hash:   100,
 				},
 			},
-			expected: []ConsistentHash{
+			expected: []NodeInfo{
 				{
 					NodeID: 1,
 					Hash:   100,
@@ -225,7 +225,7 @@ func TestSort(t *testing.T) {
 		},
 		{
 			name: "three-same-hash",
-			hashes: []ConsistentHash{
+			nodes: []NodeInfo{
 				{
 					NodeID: 2,
 					Hash:   200,
@@ -239,7 +239,7 @@ func TestSort(t *testing.T) {
 					Hash:   100,
 				},
 			},
-			expected: []ConsistentHash{
+			expected: []NodeInfo{
 				{
 					NodeID: 1,
 					Hash:   100,
@@ -258,8 +258,8 @@ func TestSort(t *testing.T) {
 
 	for _, e := range table {
 		t.Run(e.name, func(t *testing.T) {
-			Sort(e.hashes)
-			assert.Equal(t, e.expected, e.hashes)
+			Sort(e.nodes)
+			assert.Equal(t, e.expected, e.nodes)
 		})
 	}
 }
