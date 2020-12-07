@@ -159,10 +159,9 @@ func processCommandsPure(
 		switch cmd.Type() {
 		case commandTypeInc:
 			cmdInc := cmd.(commandInc)
-			fmt.Println(cmdInc)
 
 			hash := hashCounterID(cmdInc.counterID)
-			fmt.Println(hash)
+			fmt.Println("CounterID:", cmdInc.counterID, "hash:", hash)
 
 			nullNodeID := core.GetNodeID(nodes, hash)
 			if !nullNodeID.Valid || nullNodeID.NodeID != selfNodeID {
