@@ -130,8 +130,12 @@ func (s *ProxyService) call(ctx context.Context, hash core.Hash,
 
 			fmt.Println("Null Address:", retryCount)
 
-			time.Sleep(time.Duration(retryCount) * 5 * time.Second)
-			continue
+			select {
+			case <-ctx.Done():
+				return hello.ErrClientAborted
+			case <-time.After(time.Duration(retryCount) * 5 * time.Second):
+				continue
+			}
 		}
 
 		addr := nullAddress.Address
@@ -144,8 +148,12 @@ func (s *ProxyService) call(ctx context.Context, hash core.Hash,
 
 			fmt.Println("No conn")
 
-			time.Sleep(time.Duration(retryCount) * 5 * time.Second)
-			continue
+			select {
+			case <-ctx.Done():
+				return hello.ErrClientAborted
+			case <-time.After(time.Duration(retryCount) * 5 * time.Second):
+				continue
+			}
 		}
 
 		err := fn(ctx, conn)
@@ -163,8 +171,12 @@ func (s *ProxyService) call(ctx context.Context, hash core.Hash,
 
 				fmt.Println("Aborted:", retryCount)
 
-				time.Sleep(time.Duration(retryCount) * 5 * time.Second)
-				continue
+				select {
+				case <-ctx.Done():
+					return hello.ErrClientAborted
+				case <-time.After(time.Duration(retryCount) * 5 * time.Second):
+					continue
+				}
 			}
 
 			return err

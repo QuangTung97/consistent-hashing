@@ -38,7 +38,7 @@ func (p *Port) Increase(ctx context.Context, id hello.CounterID) error {
 	select {
 	case e, more := <-replyChan:
 		if !more {
-			return hello.ErrCommandAborted
+			return hello.ErrInternal
 		}
 		ev := e.(eventInc)
 		return ev.err
@@ -54,7 +54,13 @@ func (p *Port) Process(ctx context.Context, watchChan <-chan core.WatchResponse)
 		err := p.processor.process(ctx, watchChan)
 		if err != nil {
 			fmt.Println(err)
-			continue
+
+			select {
+			case <-ctx.Done():
+				continue
+			case <-time.After(2 * time.Second):
+				continue
+			}
 		}
 		return
 	}

@@ -24,6 +24,7 @@ type command interface {
 
 type event interface {
 	Type() eventType
+	SetError(err error) event
 }
 
 // COMMANDS
@@ -51,6 +52,12 @@ func (e eventInc) Type() eventType {
 	return eventTypeInc
 }
 
+func (e eventInc) SetError(err error) event {
+	return eventInc{
+		err: err,
+	}
+}
+
 // PROCESSOR
 
 const maxBatchSize = 5000
@@ -58,7 +65,7 @@ const maxBatchSize = 5000
 type processor struct {
 	repo       hello.Repository
 	cmdChan    <-chan command
-	counterMap map[hello.CounterID]uint32
+	counterMap map[hello.CounterID]hello.Counter
 
 	nodes      []core.NodeInfo
 	selfNodeID core.NodeID
@@ -68,7 +75,7 @@ func newProcessor(selfNodeID core.NodeID, repo hello.Repository, cmdChan <-chan 
 	return &processor{
 		repo:       repo,
 		cmdChan:    cmdChan,
-		counterMap: make(map[hello.CounterID]uint32),
+		counterMap: make(map[hello.CounterID]hello.Counter),
 		selfNodeID: selfNodeID,
 	}
 }
@@ -81,7 +88,10 @@ func (p *processor) process(ctx context.Context, watchChan <-chan core.WatchResp
 			cmds = append(cmds, first)
 
 		case wr := <-watchChan:
-			p.handleWatch(wr.Nodes)
+			err := p.handleWatch(wr.Nodes)
+			if err != nil {
+				return err
+			}
 
 		case <-ctx.Done():
 			return nil
@@ -97,7 +107,10 @@ func (p *processor) process(ctx context.Context, watchChan <-chan core.WatchResp
 				cmds = append(cmds, c)
 
 			case wr := <-watchChan:
-				p.handleWatch(wr.Nodes)
+				err := p.handleWatch(wr.Nodes)
+				if err != nil {
+					return err
+				}
 
 			case <-ctx.Done():
 				return nil
@@ -125,16 +138,21 @@ type replyEvent struct {
 	replyChan chan<- event
 }
 
+type counterUpdate struct {
+	oldVersion uint32
+	value      uint32
+}
+
 type processResponse struct {
-	updates     map[hello.CounterID]uint32
+	updates     map[hello.CounterID]counterUpdate
 	replyEvents []replyEvent
 }
 
 func processCommandsPure(
 	nodes []core.NodeInfo, selfNodeID core.NodeID,
-	counterMap map[hello.CounterID]uint32, commands []command,
+	counterMap map[hello.CounterID]hello.Counter, commands []command,
 ) processResponse {
-	updates := make(map[hello.CounterID]uint32)
+	updates := make(map[hello.CounterID]counterUpdate)
 	replyEvents := make([]replyEvent, 0, len(commands))
 
 	for _, cmd := range commands {
@@ -155,8 +173,18 @@ func processCommandsPure(
 				break
 			}
 
-			counterMap[cmdInc.counterID] = counterMap[cmdInc.counterID] + 1
-			updates[cmdInc.counterID] = counterMap[cmdInc.counterID]
+			oldCounter := counterMap[cmdInc.counterID]
+
+			counterMap[cmdInc.counterID] = hello.Counter{
+				ID:      cmdInc.counterID,
+				Version: oldCounter.Version,
+				Value:   oldCounter.Value + 1,
+			}
+
+			updates[cmdInc.counterID] = counterUpdate{
+				oldVersion: oldCounter.Version,
+				value:      oldCounter.Value + 1,
+			}
 
 			replyEvents = append(replyEvents, replyEvent{
 				replyChan: cmdInc.replyChan,
@@ -167,6 +195,15 @@ func processCommandsPure(
 			panic("Invalid command type")
 		}
 	}
+
+	for id, update := range updates {
+		counterMap[id] = hello.Counter{
+			ID:      id,
+			Version: update.oldVersion + 1,
+			Value:   update.value,
+		}
+	}
+
 	return processResponse{
 		updates:     updates,
 		replyEvents: replyEvents,
@@ -176,17 +213,28 @@ func processCommandsPure(
 func (p *processor) processCommands(cmds []command) error {
 	res := processCommandsPure(p.nodes, p.selfNodeID, p.counterMap, cmds)
 
+	counters := make([]hello.CounterUpsert, 0, len(res.updates))
+	for id, update := range res.updates {
+		counters = append(counters, hello.CounterUpsert{
+			ID:         id,
+			NewVersion: update.oldVersion + 1,
+			Value:      update.value,
+		})
+
+	}
+
 	// save to database, close all channels if error
 	ctx := context.Background()
 	err := p.repo.Transact(ctx, func(ctx context.Context, tx hello.TxRepository) error {
-		for id, value := range res.updates {
-			err := tx.UpsertCounter(ctx, id, value)
-			if err != nil {
-				return err
-			}
+		return tx.UpsertCounters(ctx, counters)
+	})
+	if err == hello.ErrCommandAborted {
+		for _, re := range res.replyEvents {
+			e := re.event.SetError(hello.ErrCommandAborted)
+			re.replyChan <- e
 		}
 		return nil
-	})
+	}
 	if err != nil {
 		for _, re := range res.replyEvents {
 			close(re.replyChan)
@@ -200,9 +248,18 @@ func (p *processor) processCommands(cmds []command) error {
 	return nil
 }
 
-func (p *processor) handleWatch(nodes []core.NodeInfo) {
+func (p *processor) handleWatch(nodes []core.NodeInfo) error {
+	counters, err := p.repo.GetAllCounters(context.Background())
+	if err != nil {
+		return err
+	}
+	for _, c := range counters {
+		p.counterMap[c.ID] = c
+	}
+
 	fmt.Println(nodes)
 	p.nodes = nodes
+	return nil
 }
 
 func hashCounterID(counterID hello.CounterID) core.Hash {
