@@ -75,6 +75,11 @@ func (s *ProxyService) Watch(newNodes []core.NodeInfo) {
 	diff := core.ComputeAddressesDifference(oldNodes, newNodes)
 
 	for _, deleted := range diff.Deleted {
+		err := copyConnMap[deleted].Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+
 		delete(copyConnMap, deleted)
 	}
 

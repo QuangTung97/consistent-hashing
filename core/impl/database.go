@@ -127,7 +127,9 @@ WHERE NOW() <= expired_at
 }
 
 // KeepAliveAndWatch ...
-func (c *DBCoreService) KeepAliveAndWatch(ctx context.Context, info core.NodeInfo, ch chan<- core.WatchResponse) {
+func (c *DBCoreService) KeepAliveAndWatch(ctx context.Context, info core.NodeInfo,
+	ch chan<- core.WatchResponse,
+) error {
 	dbInfo := dbNodeInfo{
 		NodeID:  info.NodeID,
 		Hash:    info.Hash,
@@ -139,9 +141,11 @@ func (c *DBCoreService) KeepAliveAndWatch(ctx context.Context, info core.NodeInf
 	go c.watch(ch)
 
 	c.keepAlive(ctx, dbInfo)
+	return nil
 }
 
 // Watch ...
-func (c *DBCoreService) Watch(ctx context.Context, ch chan<- core.WatchResponse) {
+func (c *DBCoreService) Watch(ctx context.Context, ch chan<- core.WatchResponse) error {
 	go c.watch(ch)
+	return nil
 }

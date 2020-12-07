@@ -3,7 +3,7 @@ module sharding
 go 1.14
 
 require (
-	github.com/coreos/etcd v3.3.25+incompatible // indirect
+	github.com/coreos/etcd v3.3.25+incompatible
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/fzipp/gocyclo v0.0.0-20150627053110-6acd4345c835
 	github.com/go-sql-driver/mysql v1.5.0

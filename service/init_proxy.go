@@ -26,7 +26,7 @@ func InitProxyRoot(server *grpc.Server, logger *zap.Logger) *ProxyRoot {
 	cfg := config.LoadConfig()
 
 	// db := sqlx.MustConnect("mysql", "root:1@tcp(localhost:3306)/bench?parseTime=true")
-	coreService := impl.NewPeerCoreService(cfg.Nodes, core.NullNodeID{}, logger)
+	coreService := impl.NewEtcdCoreService()
 
 	s := hello_service.NewProxyService()
 
@@ -42,7 +42,10 @@ func InitProxyRoot(server *grpc.Server, logger *zap.Logger) *ProxyRoot {
 // Run ...
 func (r *ProxyRoot) Run(ctx context.Context) {
 	watchChan := make(chan core.WatchResponse, 1)
-	r.core.Watch(ctx, watchChan)
+	err := r.core.Watch(ctx, watchChan)
+	if err != nil {
+		panic(err)
+	}
 
 	for wr := range watchChan {
 		r.service.Watch(wr.Nodes)

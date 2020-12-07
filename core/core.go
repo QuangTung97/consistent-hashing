@@ -40,9 +40,9 @@ type (
 		// KeepAliveAndWatch must delete the info when context is Done
 		// and watch see the changes of node infos
 		// nodes in WatchResponse always sorted by hash and are immutable
-		KeepAliveAndWatch(ctx context.Context, info NodeInfo, ch chan<- WatchResponse)
+		KeepAliveAndWatch(ctx context.Context, info NodeInfo, ch chan<- WatchResponse) error
 		// Watch ...
-		Watch(ctx context.Context, ch chan<- WatchResponse)
+		Watch(ctx context.Context, ch chan<- WatchResponse) error
 	}
 )
 

@@ -28,7 +28,9 @@ type PeerCoreService struct {
 var _ core.Service = &PeerCoreService{}
 
 // NewPeerCoreService ...
-func NewPeerCoreService(nodeConfigs []config.NodeConfig, selfID core.NullNodeID, logger *zap.Logger) *PeerCoreService {
+func NewPeerCoreService(nodeConfigs []config.NodeConfig,
+	selfID core.NullNodeID, logger *zap.Logger,
+) *PeerCoreService {
 	connMap := make(map[core.NodeID]nodeConn)
 	for _, n := range nodeConfigs {
 		connectParams := grpc.ConnectParams{
@@ -148,12 +150,14 @@ func (c *PeerCoreService) watch(ctx context.Context, ch chan<- core.WatchRespons
 // KeepAliveAndWatch ...
 func (c *PeerCoreService) KeepAliveAndWatch(
 	ctx context.Context, info core.NodeInfo, ch chan<- core.WatchResponse,
-) {
+) error {
 	c.watch(ctx, ch)
 	<-ctx.Done()
+	return nil
 }
 
 // Watch ..
-func (c *PeerCoreService) Watch(ctx context.Context, ch chan<- core.WatchResponse) {
+func (c *PeerCoreService) Watch(ctx context.Context, ch chan<- core.WatchResponse) error {
 	c.watch(ctx, ch)
+	return nil
 }

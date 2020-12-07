@@ -62,11 +62,7 @@ func InitRoot(server *grpc.Server, logger *zap.Logger) *Root {
 
 	db := sqlx.MustConnect("mysql", "root:1@tcp(localhost:3306)/bench?parseTime=true")
 
-	core := impl.NewPeerCoreService(
-		cfg.Nodes,
-		core.NullNodeID{Valid: true, NodeID: selfNodeID},
-		logger,
-	)
+	core := impl.NewEtcdCoreService()
 	repo := hello_repo.NewRepo(db)
 
 	port := hello_logic.NewPort(nodeConfig, repo)
@@ -100,7 +96,10 @@ func (r *Root) Run(ctx context.Context) {
 
 	go func() {
 		defer wg.Done()
-		r.core.KeepAliveAndWatch(ctx, info, watchChan)
+		err := r.core.KeepAliveAndWatch(ctx, info, watchChan)
+		if err != nil {
+			panic(err)
+		}
 		close(r.closeChan)
 	}()
 
