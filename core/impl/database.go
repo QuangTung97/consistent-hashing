@@ -48,6 +48,13 @@ ON DUPLICATE KEY UPDATE
     expired_at = NEW.expired_at
 `
 
+func (c *DBCoreService) insert(ctx context.Context, info dbNodeInfo) {
+	_, err := c.db.Exec(keepAliveQuery, info.NodeID, info.Hash, info.Address)
+	if err != nil {
+		c.logger.Error("Insert into consistent_hash", zap.Error(err))
+	}
+}
+
 func (c *DBCoreService) keepAlive(ctx context.Context, info dbNodeInfo) {
 KeepAliveLoop:
 	for {
@@ -76,17 +83,6 @@ KeepAliveLoop:
 			continue KeepAliveLoop
 		}
 	}
-}
-
-// KeepAlive keeps the current node alive
-func (c *DBCoreService) KeepAlive(ctx context.Context, info core.NodeInfo) {
-	dbInfo := dbNodeInfo{
-		NodeID:  info.NodeID,
-		Hash:    info.Hash,
-		Address: info.Address,
-	}
-
-	c.keepAlive(ctx, dbInfo)
 }
 
 func dbNodeInfosToCore(nodes []dbNodeInfo) []core.NodeInfo {
@@ -130,9 +126,22 @@ WHERE NOW() <= expired_at
 	}
 }
 
-// Watch get the consistent hashing configure
-func (c *DBCoreService) Watch(_ context.Context) <-chan core.WatchResponse {
-	ch := make(chan core.WatchResponse)
+// KeepAliveAndWatch ...
+func (c *DBCoreService) KeepAliveAndWatch(ctx context.Context, info core.NodeInfo, ch chan<- core.WatchResponse) {
+	dbInfo := dbNodeInfo{
+		NodeID:  info.NodeID,
+		Hash:    info.Hash,
+		Address: info.Address,
+	}
+
+	c.insert(ctx, dbInfo)
+
 	go c.watch(ch)
-	return ch
+
+	c.keepAlive(ctx, dbInfo)
+}
+
+// Watch ...
+func (c *DBCoreService) Watch(ctx context.Context, ch chan<- core.WatchResponse) {
+	go c.watch(ch)
 }

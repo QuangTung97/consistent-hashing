@@ -8,12 +8,10 @@ import (
 
 // Service for gRPC
 type Service struct {
-	rpc.UnsafeHelloServer
+	rpc.UnimplementedHelloServer
 	port      domain.Port
 	closeChan <-chan struct{}
 }
-
-var _ rpc.HelloServer = &Service{}
 
 // NewService create a new Service
 func NewService(port domain.Port, closeChan <-chan struct{}) *Service {

@@ -14,7 +14,6 @@ import (
 	hello_service "sharding/service/hello"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/jmoiron/sqlx"
@@ -97,14 +96,13 @@ func (r *Root) Run(ctx context.Context) {
 		Address: node.ToAddress(),
 	}
 
+	watchChan := make(chan core.WatchResponse, 1)
+
 	go func() {
 		defer wg.Done()
-		r.core.KeepAlive(ctx, info)
+		r.core.KeepAliveAndWatch(ctx, info, watchChan)
 		close(r.closeChan)
 	}()
-
-	time.Sleep(100 * time.Millisecond)
-	watchChan := r.core.Watch(ctx)
 
 	go func() {
 		defer wg.Done()

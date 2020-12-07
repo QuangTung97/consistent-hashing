@@ -11,6 +11,7 @@ import (
 	service "sharding/service"
 	"sync"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -29,18 +30,22 @@ func deciderAllMethods(ctx context.Context, fullMethodName string, servingObject
 
 func initServer(logger *zap.Logger) (*grpc.Server, *service.ProxyRoot) {
 	server := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			grpc_ctxtags.UnaryServerInterceptor(),
-			grpc_prometheus.UnaryServerInterceptor,
-			grpc_zap.UnaryServerInterceptor(logger),
-			// grpc_zap.PayloadUnaryServerInterceptor(logger, decider),
-			errors.UnaryServerInterceptor(),
+		grpc.UnaryInterceptor(
+			grpc_middleware.ChainUnaryServer(
+				grpc_ctxtags.UnaryServerInterceptor(),
+				grpc_prometheus.UnaryServerInterceptor,
+				grpc_zap.UnaryServerInterceptor(logger),
+				// grpc_zap.PayloadUnaryServerInterceptor(logger, decider),
+				errors.UnaryServerInterceptor(),
+			),
 		),
-		grpc.ChainStreamInterceptor(
-			grpc_ctxtags.StreamServerInterceptor(),
-			grpc_prometheus.StreamServerInterceptor,
-			grpc_zap.StreamServerInterceptor(logger),
-			// grpc_zap.PayloadStreamServerInterceptor(logger, decider),
+		grpc.StreamInterceptor(
+			grpc_middleware.ChainStreamServer(
+				grpc_ctxtags.StreamServerInterceptor(),
+				grpc_prometheus.StreamServerInterceptor,
+				grpc_zap.StreamServerInterceptor(logger),
+				// grpc_zap.PayloadStreamServerInterceptor(logger, decider),
+			),
 		),
 	)
 

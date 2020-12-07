@@ -65,11 +65,6 @@ func NewPeerCoreService(nodeConfigs []config.NodeConfig, selfID core.NullNodeID,
 	}
 }
 
-// KeepAlive ...
-func (c *PeerCoreService) KeepAlive(ctx context.Context, info core.NodeInfo) {
-	<-ctx.Done()
-}
-
 type actionType int
 
 const (
@@ -82,9 +77,7 @@ type nodeAction struct {
 	action actionType
 }
 
-// Watch ...
-func (c *PeerCoreService) Watch(ctx context.Context) <-chan core.WatchResponse {
-	ch := make(chan core.WatchResponse, 1)
+func (c *PeerCoreService) watch(ctx context.Context, ch chan<- core.WatchResponse) {
 	actionChan := make(chan nodeAction, 1)
 
 	nodeMap := make(map[core.NodeID]core.NodeInfo)
@@ -150,6 +143,17 @@ func (c *PeerCoreService) Watch(ctx context.Context) <-chan core.WatchResponse {
 			}
 		}
 	}()
+}
 
-	return ch
+// KeepAliveAndWatch ...
+func (c *PeerCoreService) KeepAliveAndWatch(
+	ctx context.Context, info core.NodeInfo, ch chan<- core.WatchResponse,
+) {
+	c.watch(ctx, ch)
+	<-ctx.Done()
+}
+
+// Watch ..
+func (c *PeerCoreService) Watch(ctx context.Context, ch chan<- core.WatchResponse) {
+	c.watch(ctx, ch)
 }

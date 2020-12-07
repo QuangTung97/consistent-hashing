@@ -18,7 +18,7 @@ import (
 
 // ProxyService for proxy gRPC
 type ProxyService struct {
-	rpc.UnsafeHelloServer
+	rpc.UnimplementedHelloServer
 	logger *zap.Logger
 
 	mut     sync.RWMutex

@@ -37,11 +37,12 @@ type (
 
 	// Service for storing consistent hashing
 	Service interface {
-		// KeepAlive must delete the info when context is Done
-		KeepAlive(ctx context.Context, info NodeInfo)
-		// Watch see the changes of node infos
+		// KeepAliveAndWatch must delete the info when context is Done
+		// and watch see the changes of node infos
 		// nodes in WatchResponse always sorted by hash and are immutable
-		Watch(ctx context.Context) <-chan WatchResponse
+		KeepAliveAndWatch(ctx context.Context, info NodeInfo, ch chan<- WatchResponse)
+		// Watch ...
+		Watch(ctx context.Context, ch chan<- WatchResponse)
 	}
 )
 
