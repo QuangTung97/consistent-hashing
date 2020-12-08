@@ -94,7 +94,7 @@ func (p *processor) process(ctx context.Context, watchChan <-chan core.WatchResp
 			}
 
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		}
 
 	BatchLoop:
@@ -113,7 +113,7 @@ func (p *processor) process(ctx context.Context, watchChan <-chan core.WatchResp
 				}
 
 			case <-ctx.Done():
-				return nil
+				return ctx.Err()
 
 			default:
 				break BatchLoop

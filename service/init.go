@@ -13,7 +13,6 @@ import (
 	hello_rpc "sharding/rpc/hello/v1"
 	hello_service "sharding/service/hello"
 	"strconv"
-	"sync"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/jmoiron/sqlx"
@@ -61,6 +60,8 @@ func InitRoot(server *grpc.Server, logger *zap.Logger) *Root {
 	fmt.Println("Address:", nodeConfig.ToAddress())
 
 	db := sqlx.MustConnect("mysql", "root:1@tcp(localhost:3306)/bench?parseTime=true")
+	db.SetMaxIdleConns(5)
+	db.SetMaxIdleConns(50)
 
 	core := impl.NewEtcdCoreService()
 	repo := hello_repo.NewRepo(db)
@@ -80,10 +81,21 @@ func InitRoot(server *grpc.Server, logger *zap.Logger) *Root {
 	}
 }
 
-// Run other processes
-func (r *Root) Run(ctx context.Context) {
-	var wg sync.WaitGroup
-	wg.Add(2)
+func errIsNotContext(err error) bool {
+	if err != nil {
+		if err == context.Canceled {
+			return false
+		}
+		if err == context.DeadlineExceeded {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (r *Root) runLoop(ctx context.Context) bool {
+	ctx, cancel := context.WithCancel(ctx)
 
 	node := r.nodeConfig
 	info := core.NodeInfo{
@@ -93,23 +105,43 @@ func (r *Root) Run(ctx context.Context) {
 	}
 
 	watchChan := make(chan core.WatchResponse, 1)
+	errChan := make(chan error, 2)
 
 	go func() {
-		defer wg.Done()
 		err := r.core.KeepAliveAndWatch(ctx, info, watchChan)
-		if err != nil {
-			panic(err)
-		}
-		close(r.closeChan)
+		errChan <- err
 	}()
 
 	go func() {
-		defer wg.Done()
-		r.port.Process(ctx, watchChan)
-		fmt.Println("Shutdown processor")
+		err := r.port.Process(ctx, watchChan)
+		errChan <- err
 	}()
 
-	wg.Wait()
+	err := <-errChan
+	if errIsNotContext(err) {
+		fmt.Println(err)
+		cancel()
+		<-errChan
+		return true
+	}
+
+	err = <-errChan
+	if errIsNotContext(err) {
+		fmt.Println(err)
+		cancel()
+		return true
+	}
+
+	cancel()
+	return false
+}
+
+// Run other processes
+func (r *Root) Run(ctx context.Context) {
+	for r.runLoop(ctx) {
+	}
+
+	close(r.closeChan)
 }
 
 // GetNodeConfig ...

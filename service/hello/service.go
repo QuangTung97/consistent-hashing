@@ -39,7 +39,11 @@ func (s *Service) Ping(req *rpc.PingRequest, server rpc.Hello_PingServer) error 
 		return err
 	}
 
-	<-s.closeChan
-
-	return nil
+	ctx := server.Context()
+	select {
+	case <-ctx.Done():
+		return nil
+	case <-s.closeChan:
+		return nil
+	}
 }

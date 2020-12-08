@@ -40,8 +40,10 @@ type (
 
 	// Port interface for core logic
 	Port interface {
+		// Increase for increasing counter
 		Increase(ctx context.Context, id CounterID) error
-		Process(ctx context.Context, watchChan <-chan core.WatchResponse)
+		// Process process in background
+		Process(ctx context.Context, watchChan <-chan core.WatchResponse) error
 	}
 )
 
@@ -58,6 +60,6 @@ var (
 	// ErrServiceUnavailable ...
 	ErrServiceUnavailable = errors.New("14001", "Service unavailable")
 
-	// ErrInternal
+	// ErrInternal ...
 	ErrInternal = errors.New("13001", "Internal server error")
 )

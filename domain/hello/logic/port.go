@@ -2,7 +2,6 @@ package logic
 
 import (
 	"context"
-	"fmt"
 	"sharding/config"
 	"sharding/core"
 	"sharding/domain/hello"
@@ -49,19 +48,6 @@ func (p *Port) Increase(ctx context.Context, id hello.CounterID) error {
 }
 
 // Process ...
-func (p *Port) Process(ctx context.Context, watchChan <-chan core.WatchResponse) {
-	for {
-		err := p.processor.process(ctx, watchChan)
-		if err != nil {
-			fmt.Println(err)
-
-			select {
-			case <-ctx.Done():
-				continue
-			case <-time.After(2 * time.Second):
-				continue
-			}
-		}
-		return
-	}
+func (p *Port) Process(ctx context.Context, watchChan <-chan core.WatchResponse) error {
+	return p.processor.process(ctx, watchChan)
 }

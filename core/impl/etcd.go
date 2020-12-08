@@ -6,6 +6,7 @@ import (
 	"sharding/core"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
@@ -177,7 +178,11 @@ func (s *EtcdCoreService) KeepAliveAndWatch(ctx context.Context, info core.NodeI
 
 	<-ctx.Done()
 
-	_, err = s.etcdClient.Revoke(context.Background(), leaseID)
+	revokeCtx := context.Background()
+	revokeCtx, cancel := context.WithTimeout(revokeCtx, 1*time.Second)
+	defer cancel()
+
+	_, err = s.etcdClient.Revoke(revokeCtx, leaseID)
 	return err
 }
 
