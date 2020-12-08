@@ -256,6 +256,16 @@ func (p *processor) handleWatch(nodes []core.NodeInfo) error {
 		p.counterMap[c.ID] = c
 	}
 
+	hasSelf := false
+	for _, n := range nodes {
+		if n.NodeID == p.selfNodeID {
+			hasSelf = true
+		}
+	}
+	if !hasSelf {
+		return hello.ErrShardingConfig
+	}
+
 	fmt.Println(nodes)
 	p.nodes = nodes
 	return nil
