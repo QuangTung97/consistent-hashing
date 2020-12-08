@@ -41,14 +41,19 @@ func InitProxyRoot(server *grpc.Server, logger *zap.Logger) *ProxyRoot {
 
 // Run ...
 func (r *ProxyRoot) Run(ctx context.Context) {
-	watchChan := make(chan core.WatchResponse, 1)
-	err := r.core.Watch(ctx, watchChan)
-	if err != nil {
-		panic(err)
-	}
+	for {
+		watchChan := make(chan core.WatchResponse, 1)
+		err := r.core.Watch(ctx, watchChan)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
 
-	for wr := range watchChan {
-		r.service.Watch(wr.Nodes)
+		for wr := range watchChan {
+			r.service.Watch(wr.Nodes)
+		}
+
+		return
 	}
 }
 
