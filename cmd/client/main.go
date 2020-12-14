@@ -60,7 +60,7 @@ func main() {
 
 	start := time.Now()
 	concurrent(10000, 100, 1000, func(k int) {
-		_, err = client.Increase(ctx, req)
+		_, err := client.Increase(ctx, req)
 		if err != nil {
 			st, ok := status.FromError(err)
 			if ok {

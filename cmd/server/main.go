@@ -90,7 +90,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		err = server.Serve(lis)
+		err := server.Serve(lis)
 		if err != nil {
 			logger.Error("serve", zap.Error(err))
 		}

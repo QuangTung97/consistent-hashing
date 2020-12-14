@@ -33,6 +33,11 @@ all:
 	go build -o client cmd/client/main.go
 	go build -o proxy cmd/proxy/main.go
 
+build-race:
+	go build -race -gcflags=all=-d=checkptr=0 -o server cmd/server/main.go
+	go build -race -gcflags=all=-d=checkptr=0 -o client cmd/client/main.go
+	go build -race -gcflags=all=-d=checkptr=0 -o proxy cmd/proxy/main.go
+
 gen:
 	rm -rf rpc
 	$(call generate,hello/v1/,hello.proto)
